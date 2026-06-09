@@ -60,10 +60,14 @@
   const cx = BOOK.coverX + BOOK.W / 2;
   const cy = BOOK.coverY + BOOK.H / 2;
 
-  // --- fore-edge scrubbing ---------------------------------------------
-  const FTRx = BOOK.coverX + BOOK.W;
-  const FTRy = BOOK.coverY;
-  const FBRy = BOOK.coverY + BOOK.H;
+  // --- scrubbing to a day ----------------------------------------------
+  // The whole book is the hit target (no dead zone over the cover). The
+  // cursor's vertical position picks the entry — top = newest, bottom = oldest
+  // — so even a thin few-entry book has big, reliable zones. Feedback is a
+  // horizontal selection line that sits right at the cursor's row.
+  const SPINEx = BOOK.coverX;
+  const FOREx = BOOK.coverX + BOOK.W;
+  const topY = BOOK.coverY;
 
   let svgEl: SVGSVGElement | undefined = $state();
   let figureEl: HTMLElement | undefined = $state();
@@ -71,27 +75,36 @@
   let tipX = $state(0);
   let tipY = $state(0);
 
-  const interactive = $derived(!!onnavigate && dates.length >= 1);
+  const n = $derived(dates.length);
+  const interactive = $derived(!!onnavigate && n >= 1);
   const activeIdx = $derived(activeDate ? dates.indexOf(activeDate) : -1);
   const hoverDate = $derived(
     hoverIdx !== null && dates[hoverIdx] ? dates[hoverIdx] : null,
   );
 
-  // Depth offset (SVG units) for the leaf at fractional position t in [0,1].
-  function leafLine(idx: number) {
-    const t = dates.length > 1 ? idx / (dates.length - 1) : 0;
-    const ox = t * thick.current * BOOK.ux;
-    const oy = t * thick.current * BOOK.uy;
-    return {
-      x1: FTRx + ox,
-      y1: FTRy + oy,
-      x2: FTRx + ox,
-      y2: FBRy + oy,
-    };
+  // Whole-book silhouette (cover + top face + fore-edge) — the hit target.
+  const silhouette = $derived.by(() => {
+    const dx = thick.current * BOOK.ux;
+    const dy = thick.current * BOOK.uy;
+    const botY = BOOK.coverY + BOOK.H;
+    const p = (x: number, y: number) => `${x.toFixed(1)},${y.toFixed(1)}`;
+    return [
+      p(SPINEx, botY),
+      p(SPINEx, topY),
+      p(SPINEx + dx, topY + dy),
+      p(FOREx + dx, topY + dy),
+      p(FOREx + dx, botY + dy),
+      p(FOREx, botY),
+    ].join(" ");
+  });
+
+  // Horizontal selection line at an entry's row, crossing the page-block.
+  function rowLine(idx: number) {
+    const y = topY + ((idx + 0.5) / Math.max(n, 1)) * BOOK.H;
+    return { x1: FOREx - 36, y1: y, x2: FOREx + thick.current * BOOK.ux + 3, y2: y };
   }
 
-  // Project a cursor point onto the depth axis → fraction t in [0,1].
-  function depthFraction(e: MouseEvent): number | null {
+  function rowFromEvent(e: MouseEvent): number | null {
     if (!svgEl) return null;
     const pt = svgEl.createSVGPoint();
     pt.x = e.clientX;
@@ -99,19 +112,15 @@
     const ctm = svgEl.getScreenCTM();
     if (!ctm) return null;
     const p = pt.matrixTransform(ctm.inverse());
-    const dx = thick.current * BOOK.ux;
-    const dy = thick.current * BOOK.uy;
-    const dd = dx * dx + dy * dy;
-    if (dd === 0) return 0;
-    const t = ((p.x - FTRx) * dx + (p.y - FTRy) * dy) / dd;
-    return Math.max(0, Math.min(1, t));
+    const f = Math.max(0, Math.min(0.999999, (p.y - topY) / BOOK.H));
+    return Math.min(n - 1, Math.floor(f * n));
   }
 
   function onMove(e: MouseEvent) {
     if (!interactive) return;
-    const t = depthFraction(e);
-    if (t === null) return;
-    hoverIdx = dates.length > 1 ? Math.round(t * (dates.length - 1)) : 0;
+    const idx = rowFromEvent(e);
+    if (idx === null) return;
+    hoverIdx = idx;
     if (figureEl) {
       const r = figureEl.getBoundingClientRect();
       tipX = e.clientX - r.left;
@@ -171,11 +180,11 @@
 
     <!-- marker for the currently-open day; brighter highlight while scrubbing -->
     {#if activeIdx >= 0 && activeIdx !== hoverIdx}
-      {@const m = leafLine(activeIdx)}
+      {@const m = rowLine(activeIdx)}
       <line class="leaf-active" x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} />
     {/if}
     {#if hoverIdx !== null}
-      {@const h = leafLine(hoverIdx)}
+      {@const h = rowLine(hoverIdx)}
       <line class="leaf-hover" x1={h.x1} y1={h.y1} x2={h.x2} y2={h.y2} />
     {/if}
 
@@ -207,7 +216,7 @@
       />
     </g>
 
-    <!-- transparent hit target over the page faces (desktop hover only) -->
+    <!-- transparent hit target over the whole book (desktop hover only) -->
     {#if interactive}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -217,8 +226,7 @@
         onmouseleave={onLeave}
         onclick={onClick}
       >
-        <polygon points={geom.rightFace} />
-        <polygon points={geom.topFace} />
+        <polygon points={silhouette} />
       </g>
     {/if}
   </svg>
