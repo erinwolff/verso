@@ -61,17 +61,16 @@
   const cy = BOOK.coverY + BOOK.H / 2;
 
   // --- fore-edge scrubbing ---------------------------------------------
-  // Scrub along the page-block depth: front edge = most recent, deeper = older.
-  // The visible fore-edge is thin, so the hit target is a *fat band* around it
-  // (tall, padded toward the cover and past the back) — that's what makes the
-  // hover reliable without changing the gesture.
+  // Each entry is a page-column at a given depth: front (left) = most recent,
+  // deeper (right) = older. Selection depends ONLY on the cursor's horizontal
+  // position (depth) — moving up/down a column keeps the same entry — and the
+  // hit area spans the book's full height so a whole column is hoverable.
   const FTRx = BOOK.coverX + BOOK.W;
   const FTRy = BOOK.coverY;
   const FBRy = BOOK.coverY + BOOK.H;
 
-  const HIT_FRONT = 34; // depth units extended toward the viewer (into cover)
-  const HIT_BACK = 40; // depth units extended past the page-block
-  const HIT_MARGIN_Y = 34; // vertical padding, SVG units
+  const PAD_X = 24; // horizontal padding so the newest/oldest ends are reachable
+  const MARGIN_Y = 18; // vertical padding, SVG units
 
   let svgEl: SVGSVGElement | undefined = $state();
   let figureEl: HTMLElement | undefined = $state();
@@ -86,15 +85,14 @@
     hoverIdx !== null && dates[hoverIdx] ? dates[hoverIdx] : null,
   );
 
-  // Fat parallelogram around the fore-edge, skewed along the depth axis.
-  const hitPoints = $derived.by(() => {
-    const fo = -HIT_FRONT;
-    const bo = thick.current + HIT_BACK;
-    const corner = (off: number, top: boolean) => {
-      const yBase = top ? FTRy - HIT_MARGIN_Y : FBRy + HIT_MARGIN_Y;
-      return `${(FTRx + BOOK.ux * off).toFixed(1)},${(yBase + BOOK.uy * off).toFixed(1)}`;
-    };
-    return `${corner(fo, true)} ${corner(bo, true)} ${corner(bo, false)} ${corner(fo, false)}`;
+  // Full-height hit rect spanning the fore-edge depth (+ padding), so any point
+  // in an entry's vertical column registers regardless of how far down it is.
+  const hitRect = $derived.by(() => {
+    const dx = thick.current * BOOK.ux;
+    const dy = thick.current * BOOK.uy; // negative (deeper leaves sit higher)
+    const x = FTRx - PAD_X;
+    const y = FTRy + dy - MARGIN_Y;
+    return { x, y, w: dx + 2 * PAD_X, h: FBRy + MARGIN_Y - y };
   });
 
   // A vertical leaf on the fore-edge at the entry's depth position.
@@ -105,28 +103,19 @@
     return { x1: FTRx + ox, y1: FTRy + oy, x2: FTRx + ox, y2: FBRy + oy };
   }
 
-  // Project a cursor point onto the depth axis → fraction in [0,1].
-  function depthFraction(e: MouseEvent): number | null {
-    if (!svgEl) return null;
+  function onMove(e: MouseEvent) {
+    if (!interactive || !svgEl) return;
     const pt = svgEl.createSVGPoint();
     pt.x = e.clientX;
     pt.y = e.clientY;
     const ctm = svgEl.getScreenCTM();
-    if (!ctm) return null;
+    if (!ctm) return;
     const p = pt.matrixTransform(ctm.inverse());
-    const dx = thick.current * BOOK.ux;
-    const dy = thick.current * BOOK.uy;
-    const dd = dx * dx + dy * dy;
-    if (dd === 0) return 0;
-    const t = ((p.x - FTRx) * dx + (p.y - FTRy) * dy) / dd;
-    return Math.max(0, Math.min(1, t));
-  }
-
-  function onMove(e: MouseEvent) {
-    if (!interactive) return;
-    const t = depthFraction(e);
-    if (t === null) return;
-    hoverIdx = n > 1 ? Math.round(t * (n - 1)) : 0;
+    // Map horizontal position across the padded depth into equal entry zones.
+    const x0 = FTRx - PAD_X;
+    const w = thick.current * BOOK.ux + 2 * PAD_X;
+    const f = Math.max(0, Math.min(0.999999, (p.x - x0) / w));
+    hoverIdx = Math.min(n - 1, Math.floor(f * n));
     if (figureEl) {
       const r = figureEl.getBoundingClientRect();
       tipX = e.clientX - r.left;
@@ -222,18 +211,20 @@
       />
     </g>
 
-    <!-- transparent fat band over the fore-edge (desktop hover only) -->
+    <!-- transparent full-height hit area over the fore-edge (desktop hover) -->
     {#if interactive}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <g
+      <rect
         class="hit"
+        x={hitRect.x}
+        y={hitRect.y}
+        width={hitRect.w}
+        height={hitRect.h}
         onmousemove={onMove}
         onmouseleave={onLeave}
         onclick={onClick}
-      >
-        <polygon points={hitPoints} />
-      </g>
+      />
     {/if}
   </svg>
 
@@ -310,7 +301,7 @@
   }
 
   /* transparent hit area; 'transparent' fill is hit-testable, 'none' is not */
-  .hit polygon {
+  .hit {
     fill: transparent;
     stroke: none;
   }
