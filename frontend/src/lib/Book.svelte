@@ -60,14 +60,18 @@
   const cx = BOOK.coverX + BOOK.W / 2;
   const cy = BOOK.coverY + BOOK.H / 2;
 
-  // --- scrubbing to a day ----------------------------------------------
-  // The whole book is the hit target (no dead zone over the cover). The
-  // cursor's vertical position picks the entry — top = newest, bottom = oldest
-  // — so even a thin few-entry book has big, reliable zones. Feedback is a
-  // horizontal selection line that sits right at the cursor's row.
-  const SPINEx = BOOK.coverX;
-  const FOREx = BOOK.coverX + BOOK.W;
-  const topY = BOOK.coverY;
+  // --- fore-edge scrubbing ---------------------------------------------
+  // Scrub along the page-block depth: front edge = most recent, deeper = older.
+  // The visible fore-edge is thin, so the hit target is a *fat band* around it
+  // (tall, padded toward the cover and past the back) — that's what makes the
+  // hover reliable without changing the gesture.
+  const FTRx = BOOK.coverX + BOOK.W;
+  const FTRy = BOOK.coverY;
+  const FBRy = BOOK.coverY + BOOK.H;
+
+  const HIT_FRONT = 34; // depth units extended toward the viewer (into cover)
+  const HIT_BACK = 40; // depth units extended past the page-block
+  const HIT_MARGIN_Y = 34; // vertical padding, SVG units
 
   let svgEl: SVGSVGElement | undefined = $state();
   let figureEl: HTMLElement | undefined = $state();
@@ -82,29 +86,27 @@
     hoverIdx !== null && dates[hoverIdx] ? dates[hoverIdx] : null,
   );
 
-  // Whole-book silhouette (cover + top face + fore-edge) — the hit target.
-  const silhouette = $derived.by(() => {
-    const dx = thick.current * BOOK.ux;
-    const dy = thick.current * BOOK.uy;
-    const botY = BOOK.coverY + BOOK.H;
-    const p = (x: number, y: number) => `${x.toFixed(1)},${y.toFixed(1)}`;
-    return [
-      p(SPINEx, botY),
-      p(SPINEx, topY),
-      p(SPINEx + dx, topY + dy),
-      p(FOREx + dx, topY + dy),
-      p(FOREx + dx, botY + dy),
-      p(FOREx, botY),
-    ].join(" ");
+  // Fat parallelogram around the fore-edge, skewed along the depth axis.
+  const hitPoints = $derived.by(() => {
+    const fo = -HIT_FRONT;
+    const bo = thick.current + HIT_BACK;
+    const corner = (off: number, top: boolean) => {
+      const yBase = top ? FTRy - HIT_MARGIN_Y : FBRy + HIT_MARGIN_Y;
+      return `${(FTRx + BOOK.ux * off).toFixed(1)},${(yBase + BOOK.uy * off).toFixed(1)}`;
+    };
+    return `${corner(fo, true)} ${corner(bo, true)} ${corner(bo, false)} ${corner(fo, false)}`;
   });
 
-  // Horizontal selection line at an entry's row, crossing the page-block.
-  function rowLine(idx: number) {
-    const y = topY + ((idx + 0.5) / Math.max(n, 1)) * BOOK.H;
-    return { x1: FOREx - 36, y1: y, x2: FOREx + thick.current * BOOK.ux + 3, y2: y };
+  // A vertical leaf on the fore-edge at the entry's depth position.
+  function leafLine(idx: number) {
+    const t = n > 1 ? idx / (n - 1) : 0;
+    const ox = t * thick.current * BOOK.ux;
+    const oy = t * thick.current * BOOK.uy;
+    return { x1: FTRx + ox, y1: FTRy + oy, x2: FTRx + ox, y2: FBRy + oy };
   }
 
-  function rowFromEvent(e: MouseEvent): number | null {
+  // Project a cursor point onto the depth axis → fraction in [0,1].
+  function depthFraction(e: MouseEvent): number | null {
     if (!svgEl) return null;
     const pt = svgEl.createSVGPoint();
     pt.x = e.clientX;
@@ -112,15 +114,19 @@
     const ctm = svgEl.getScreenCTM();
     if (!ctm) return null;
     const p = pt.matrixTransform(ctm.inverse());
-    const f = Math.max(0, Math.min(0.999999, (p.y - topY) / BOOK.H));
-    return Math.min(n - 1, Math.floor(f * n));
+    const dx = thick.current * BOOK.ux;
+    const dy = thick.current * BOOK.uy;
+    const dd = dx * dx + dy * dy;
+    if (dd === 0) return 0;
+    const t = ((p.x - FTRx) * dx + (p.y - FTRy) * dy) / dd;
+    return Math.max(0, Math.min(1, t));
   }
 
   function onMove(e: MouseEvent) {
     if (!interactive) return;
-    const idx = rowFromEvent(e);
-    if (idx === null) return;
-    hoverIdx = idx;
+    const t = depthFraction(e);
+    if (t === null) return;
+    hoverIdx = n > 1 ? Math.round(t * (n - 1)) : 0;
     if (figureEl) {
       const r = figureEl.getBoundingClientRect();
       tipX = e.clientX - r.left;
@@ -180,11 +186,11 @@
 
     <!-- marker for the currently-open day; brighter highlight while scrubbing -->
     {#if activeIdx >= 0 && activeIdx !== hoverIdx}
-      {@const m = rowLine(activeIdx)}
+      {@const m = leafLine(activeIdx)}
       <line class="leaf-active" x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} />
     {/if}
     {#if hoverIdx !== null}
-      {@const h = rowLine(hoverIdx)}
+      {@const h = leafLine(hoverIdx)}
       <line class="leaf-hover" x1={h.x1} y1={h.y1} x2={h.x2} y2={h.y2} />
     {/if}
 
@@ -216,7 +222,7 @@
       />
     </g>
 
-    <!-- transparent hit target over the whole book (desktop hover only) -->
+    <!-- transparent fat band over the fore-edge (desktop hover only) -->
     {#if interactive}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -226,7 +232,7 @@
         onmouseleave={onLeave}
         onclick={onClick}
       >
-        <polygon points={silhouette} />
+        <polygon points={hitPoints} />
       </g>
     {/if}
   </svg>
