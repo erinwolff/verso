@@ -2,9 +2,17 @@
   // Settings + export panel (§4). Opened from a corner gear. Exports are plain
   // download links to the API (Content-Disposition triggers the save).
   import { settings, setFlicker } from "./settings.svelte";
+  import { logout } from "./api";
+
+  let { authRequired = false }: { authRequired?: boolean } = $props();
 
   let open = $state(false);
   let mdOrder = $state<"newest" | "oldest">("newest");
+
+  async function lock() {
+    await logout();
+    location.reload();
+  }
 </script>
 
 <button
@@ -68,6 +76,11 @@
         <option value="oldest">oldest first</option>
       </select>
     </label>
+
+    {#if authRequired}
+      <h2>Session</h2>
+      <button class="lock" type="button" onclick={lock}>Lock journal</button>
+    {/if}
   </div>
 {/if}
 
@@ -194,6 +207,20 @@
     border-radius: 5px;
     padding: 0.2rem 0.4rem;
     font-family: var(--sans);
+  }
+
+  .lock {
+    padding: 0.45rem 1rem;
+    background: none;
+    border: 1px solid var(--surface-edge);
+    border-radius: 7px;
+    color: var(--fire-soft);
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .lock:hover {
+    border-color: color-mix(in srgb, var(--fire) 45%, var(--surface-edge));
   }
 
   .sr-only {

@@ -6,27 +6,71 @@ SPA as static files. During local dev the SPA runs under Vite, which proxies
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI, HTTPException
+from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response as Resp
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config, storage
-
-app = FastAPI(title="Verso", docs_url=None, redoc_url=None)
+from . import auth, config, storage
 
 
-@app.on_event("startup")
-def _startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     config.ensure_dirs()
+    yield
 
 
+app = FastAPI(title="Verso", docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
+# Public router: health + auth handshake (no session required).
 api = APIRouter(prefix="/api")
+# Protected router: everything that touches the journal requires a session.
+protected = APIRouter(prefix="/api", dependencies=[Depends(auth.require_auth)])
 
 
 @api.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "app": "verso"}
+
+
+class LoginBody(BaseModel):
+    password: str
+
+
+@api.get("/auth")
+def auth_state(request: Request) -> dict:
+    """Tells the SPA whether to show the login screen."""
+    return {
+        "required": auth.enabled(),
+        "authenticated": auth.is_authenticated(request),
+    }
+
+
+@api.post("/login")
+def login(payload: LoginBody, response: Resp) -> dict:
+    if not auth.enabled():
+        return {"ok": True, "required": False}
+    if not auth.check_password(payload.password):
+        raise HTTPException(status_code=401, detail="wrong password")
+    response.set_cookie(
+        auth.SESSION_COOKIE,
+        auth.session_token(),
+        max_age=auth.COOKIE_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=auth.COOKIE_SECURE,
+        path="/",
+    )
+    return {"ok": True, "required": True}
+
+
+@api.post("/logout")
+def logout(response: Resp) -> dict:
+    response.delete_cookie(auth.SESSION_COOKIE, path="/")
+    return {"ok": True}
 
 
 class SaveBody(BaseModel):
@@ -38,7 +82,7 @@ def _valid_date_or_404(date_str: str) -> None:
         raise HTTPException(status_code=400, detail="invalid date (expected YYYY-MM-DD)")
 
 
-@api.get("/entry/{date}")
+@protected.get("/entry/{date}")
 def get_entry(date: str) -> dict:
     """Return the day's entry, or an empty shell if nothing is written yet."""
     _valid_date_or_404(date)
@@ -55,7 +99,7 @@ def get_entry(date: str) -> dict:
     return {**entry.to_dict(), "exists": True}
 
 
-@api.put("/entry/{date}")
+@protected.put("/entry/{date}")
 def put_entry(date: str, payload: SaveBody) -> dict:
     """Create/update (or delete, if emptied) the day's entry. Returns the saved
     entry plus the freshly rebuilt index so the UI can update book + stats."""
@@ -68,13 +112,13 @@ def put_entry(date: str, payload: SaveBody) -> dict:
     }
 
 
-@api.get("/entries")
+@protected.get("/entries")
 def list_entries() -> dict:
     """Metadata for every entry, newest first (for the nav list in P8)."""
     return {"entries": storage.list_entries_meta()}
 
 
-@api.get("/index")
+@protected.get("/index")
 def index() -> dict:
     """Derived stats for the book + ember: counts, words, first/last, streak."""
     return storage.get_index()
@@ -86,7 +130,7 @@ def _stamp() -> str:
     return storage.today_str()
 
 
-@api.get("/export/zip")
+@protected.get("/export/zip")
 def export_zip() -> Response:
     """The entries folder as-is, zipped — the native, lossless format."""
     import io
@@ -108,7 +152,7 @@ def export_zip() -> Response:
     )
 
 
-@api.get("/export/markdown")
+@protected.get("/export/markdown")
 def export_markdown(order: str = "newest") -> Response:
     """All entries concatenated into one readable .md (newest or oldest first)."""
     dates = storage.list_dates()  # newest first
@@ -130,7 +174,7 @@ def export_markdown(order: str = "newest") -> Response:
     )
 
 
-@api.get("/export/json")
+@protected.get("/export/json")
 def export_json() -> Response:
     """[{date, created, updated, words, body}] for piping elsewhere."""
     import json as _json
@@ -150,6 +194,7 @@ def export_json() -> Response:
 
 
 app.include_router(api)
+app.include_router(protected)
 
 
 # --- Static SPA (production single-container) -----------------------------

@@ -33,11 +33,42 @@ export type SaveResult = {
   index: Index;
 };
 
+// Called when a protected request returns 401 (session expired / missing), so
+// the app can drop back to the login screen.
+let unauthorizedHandler: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  unauthorizedHandler = fn;
+}
+
 async function json<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    unauthorizedHandler?.();
+    throw new Error("unauthorized");
+  }
   if (!res.ok) {
     throw new Error(`${res.status} ${res.statusText}`);
   }
   return res.json() as Promise<T>;
+}
+
+export type AuthState = { required: boolean; authenticated: boolean };
+
+export function getAuth(): Promise<AuthState> {
+  return fetch("/api/auth").then((r) => json<AuthState>(r));
+}
+
+export async function login(password: string): Promise<boolean> {
+  const res = await fetch("/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (res.status === 401) return false; // wrong password (not a session drop)
+  return res.ok;
+}
+
+export function logout(): Promise<unknown> {
+  return fetch("/api/logout", { method: "POST" });
 }
 
 export function getEntry(date: string): Promise<Entry> {

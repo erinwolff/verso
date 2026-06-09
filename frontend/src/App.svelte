@@ -6,16 +6,45 @@
   import Ember from "./lib/Ember.svelte";
   import Nav from "./lib/Nav.svelte";
   import Settings from "./lib/Settings.svelte";
+  import Login from "./lib/Login.svelte";
   import { stats, refreshStats, applySave } from "./lib/stats.svelte";
+  import { getAuth, setUnauthorizedHandler } from "./lib/api";
   import { todayStr } from "./lib/dates";
 
   // The day being written. Defaults to today (local); Nav can change it.
   let activeDate = $state(todayStr());
 
-  $effect(() => {
+  type Phase = "checking" | "login" | "ready";
+  let phase = $state<Phase>("checking");
+  let authRequired = $state(false);
+
+  function enterRoom() {
+    phase = "ready";
     refreshStats();
+  }
+
+  // A protected request returning 401 mid-session drops back to login.
+  setUnauthorizedHandler(() => {
+    phase = "login";
+  });
+
+  $effect(() => {
+    getAuth()
+      .then((a) => {
+        authRequired = a.required;
+        if (a.required && !a.authenticated) {
+          phase = "login";
+        } else {
+          enterRoom();
+        }
+      })
+      .catch(() => enterRoom()); // if auth check fails, fail open to the room
   });
 </script>
+
+{#if phase === "login"}
+  <Login onsuccess={enterRoom} />
+{:else if phase === "ready"}
 
 <Hearth />
 
@@ -43,7 +72,8 @@
   </Spread>
 </div>
 
-<Settings />
+  <Settings {authRequired} />
+{/if}
 
 <style>
   .room {
