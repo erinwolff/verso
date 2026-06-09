@@ -64,7 +64,12 @@
     {#snippet recto()}
       <div class="recto">
         {#if stats.loaded && stats.index}
-          <Book count={stats.index.entries} />
+          <Book
+            count={stats.index.entries}
+            dates={stats.entries.map((e) => e.date)}
+            {activeDate}
+            onnavigate={(d) => (activeDate = d)}
+          />
           <Ember streak={stats.index.streak} />
         {/if}
       </div>
