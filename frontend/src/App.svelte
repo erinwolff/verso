@@ -27,8 +27,8 @@
 
     {#snippet recto()}
       <div class="recto">
-        <Book count={stats.index?.entries ?? 0} />
-        {#if stats.index}
+        {#if stats.loaded && stats.index}
+          <Book count={stats.index.entries} />
           <Ember streak={stats.index.streak} />
         {/if}
       </div>

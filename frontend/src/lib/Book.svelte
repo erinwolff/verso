@@ -3,6 +3,8 @@
   // whose page-block thickens with the entry count, a faint full-size ghost
   // outline behind it, and the caption. The displayed thickness is driven by
   // `count`; P7 animates this by tweening the value passed in.
+  import { Tween } from "svelte/motion";
+  import { cubicOut } from "svelte/easing";
   import {
     BOOK,
     geometryFor,
@@ -12,7 +14,29 @@
 
   let { count = 0 }: { count?: number } = $props();
 
-  const geom = $derived(geometryFor(thicknessUnits(count)));
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+  // The page-block thickness tweens so a new entry visibly widens the book by
+  // a leaf (~500ms). Starts at the empty thickness; the first effect snaps to
+  // the real count with duration 0, so only later saves animate.
+  const thick = new Tween(thicknessUnits(0), {
+    duration: reduceMotion ? 0 : 520,
+    easing: cubicOut,
+  });
+  let primed = false;
+  $effect(() => {
+    const target = thicknessUnits(count);
+    if (!primed) {
+      thick.set(target, { duration: 0 });
+      primed = true;
+    } else {
+      thick.set(target);
+    }
+  });
+
+  const geom = $derived(geometryFor(thick.current));
   const ghost = $derived(geometryFor(BOOK.max));
   const label = $derived(thicknessLabel(count));
 
