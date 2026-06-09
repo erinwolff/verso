@@ -7,7 +7,7 @@ SPA as static files. During local dev the SPA runs under Vite, which proxies
 from __future__ import annotations
 
 from fastapi import APIRouter, FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -78,6 +78,75 @@ def list_entries() -> dict:
 def index() -> dict:
     """Derived stats for the book + ember: counts, words, first/last, streak."""
     return storage.get_index()
+
+
+# --- Export (first-class; storage is already markdown, §4) -----------------
+
+def _stamp() -> str:
+    return storage.today_str()
+
+
+@api.get("/export/zip")
+def export_zip() -> Response:
+    """The entries folder as-is, zipped — the native, lossless format."""
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for date_str in reversed(storage.list_dates()):  # oldest first in zip
+            path = config.ENTRIES_DIR / f"{date_str}.md"
+            if path.is_file():
+                zf.write(path, arcname=f"entries/{date_str}.md")
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="verso-{_stamp()}.zip"'
+        },
+    )
+
+
+@api.get("/export/markdown")
+def export_markdown(order: str = "newest") -> Response:
+    """All entries concatenated into one readable .md (newest or oldest first)."""
+    dates = storage.list_dates()  # newest first
+    if order == "oldest":
+        dates = list(reversed(dates))
+    parts = ["# Verso — journal export\n"]
+    for date_str in dates:
+        e = storage.read_entry(date_str)
+        if e is None:
+            continue
+        parts.append(f"\n## {date_str}\n\n{e.body.rstrip()}\n")
+    text = "\n".join(parts) + "\n"
+    return Response(
+        content=text,
+        media_type="text/markdown; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="verso-{_stamp()}.md"'
+        },
+    )
+
+
+@api.get("/export/json")
+def export_json() -> Response:
+    """[{date, created, updated, words, body}] for piping elsewhere."""
+    import json as _json
+
+    out = []
+    for date_str in reversed(storage.list_dates()):  # oldest first
+        e = storage.read_entry(date_str)
+        if e:
+            out.append(e.to_dict())
+    return Response(
+        content=_json.dumps(out, ensure_ascii=False, indent=2),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="verso-{_stamp()}.json"'
+        },
+    )
 
 
 app.include_router(api)
