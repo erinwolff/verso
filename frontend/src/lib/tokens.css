@@ -1,6 +1,21 @@
-/* Design tokens — filled out in P1. Minimal set so the scaffold renders dark. */
+/* Verso design tokens — verso-plan.md §5. Dark-only. Do not invent colors. */
 :root {
-  --bg: #1b1613;
-  --ink: #e3d9ca;
-  --serif: "EB Garamond", Georgia, serif;
+  --bg:           #1b1613;  /* warm charcoal, the room */
+  --surface-edge: #2c2520;  /* hairline borders */
+  --ink:          #e3d9ca;  /* entry text */
+  --ink-bright:   #e8dfd2;  /* headings, the book count */
+  --muted:        #8a7e6f;  /* dates, captions */
+
+  --fire:         #d98a3d;  /* firelight accent, caret, flame icon */
+  --fire-glow:    214, 128, 52; /* rgb() for the radial glow + flicker */
+  --fire-soft:    #e0c9a6;  /* "kept alight" text */
+
+  --leather:      #6e3a24;  /* book cover */
+  --gilt:         rgba(201, 168, 106, 0.55); /* cover border + crest */
+  --page:         #efe6d4;  /* page edges (the thickness) */
+  --page-shade:   #d9cdb6;  /* alternating page lines */
+
+  /* Variable family first (self-hosted via @fontsource), then graceful steps. */
+  --serif: "EB Garamond Variable", "EB Garamond", Georgia, serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }

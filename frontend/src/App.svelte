@@ -1,44 +1,52 @@
 <script lang="ts">
-  // P0 scaffold: confirm the SPA mounts and can reach the FastAPI /api.
-  let health = $state<string>("checking…");
+  import Spread from "./lib/Spread.svelte";
 
-  $effect(() => {
-    fetch("/api/health")
-      .then((r) => r.json())
-      .then((d) => (health = `${d.app}: ${d.status}`))
-      .catch(() => (health = "api unreachable"));
+  // The room shows today's date on the verso as part of the empty frame.
+  // The editor (P3) and book (P5) fill these pages in later phases.
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 </script>
 
-<main>
-  <h1>Verso</h1>
-  <p class="sub">a quiet place to write</p>
-  <p class="health">{health}</p>
-</main>
+<Spread>
+  {#snippet verso()}
+    <header class="entry-head">
+      <p class="wordmark">Verso</p>
+      <h1 class="date">{today}</h1>
+    </header>
+    <p class="placeholder">The page is blank. Writing arrives in a later phase.</p>
+  {/snippet}
+
+  {#snippet recto()}
+    <p class="placeholder">A book will rest here, thickening as you write.</p>
+  {/snippet}
+</Spread>
 
 <style>
-  main {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.25rem;
+  .entry-head {
+    margin-bottom: 1.5rem;
   }
-  h1 {
+  .wordmark {
+    margin: 0;
+    font-family: var(--sans);
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-size: 0.62rem;
+    color: var(--muted);
+  }
+  .date {
+    margin: 0.35rem 0 0;
+    font-size: clamp(1.4rem, 3vmin, 2rem);
     font-weight: 500;
-    letter-spacing: 0.04em;
-    margin: 0;
+    color: var(--ink-bright);
   }
-  .sub {
-    margin: 0;
-    opacity: 0.6;
+  .placeholder {
+    margin: auto 0;
+    color: var(--muted);
     font-style: italic;
-  }
-  .health {
-    margin-top: 1.5rem;
-    font-size: 0.8rem;
-    opacity: 0.4;
-    font-family: ui-monospace, monospace;
+    opacity: 0.7;
   }
 </style>

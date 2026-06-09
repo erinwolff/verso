@@ -3,7 +3,32 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+}
+
+body {
+  /* The room: warm charcoal with a faint depth vignette. The firelit hearth
+     glow proper arrives in P6; this is just the dark room it sits in. */
+  background:
+    radial-gradient(140% 120% at 50% -10%,
+      color-mix(in srgb, var(--bg) 88%, #000) 0%,
+      var(--bg) 55%) fixed,
+    var(--bg);
   color: var(--ink);
   font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#app { min-height: 100vh; }
+
+::selection {
+  background: rgba(var(--fire-glow), 0.28);
+  color: var(--ink-bright);
+}
+
+h1, h2, h3 {
+  color: var(--ink-bright);
+  font-weight: 500;
 }
