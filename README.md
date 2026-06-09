@@ -29,7 +29,9 @@ A multi-stage image builds the SPA and serves it + `/api` from one uvicorn
 process. Everything lives in the `./data` volume — back up by copying the folder.
 
 ```sh
-# edit compose.yaml first: set VERSO_PASSWORD and TZ, pick a host port
+# compose.yaml is gitignored (it holds your real password). Start from the template:
+cp compose.example.yaml compose.yaml
+# then edit compose.yaml: set VERSO_PASSWORD and TZ, pick a host port
 docker compose up -d --build
 ```
 

@@ -15,6 +15,10 @@ backend/static/
 data/
 *.local
 
+# Local compose holds the real VERSO_PASSWORD — keep it out of git.
+# compose.example.yaml is the committed template.
+compose.yaml
+
 # Editor / OS
 .DS_Store
 .vscode/
