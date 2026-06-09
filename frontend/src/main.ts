@@ -10,4 +10,14 @@ const app = mount(App, {
   target: document.getElementById("app")!,
 });
 
+// Register the service worker (offline reading + installable PWA). Dev runs
+// over plain http on localhost, which SW allows; skip if unsupported.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // non-fatal: the app still works without offline support
+    });
+  });
+}
+
 export default app;

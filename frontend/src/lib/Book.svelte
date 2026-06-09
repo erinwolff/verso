@@ -183,4 +183,17 @@
     font-style: italic;
     opacity: 0.85;
   }
+
+  /* Mobile: a smaller book sitting below the editor (§1). */
+  @media (max-width: 760px) {
+    svg {
+      width: min(70%, 240px);
+    }
+    .book {
+      gap: 0.9rem;
+    }
+    figcaption {
+      font-size: 0.88rem;
+    }
+  }
 </style>

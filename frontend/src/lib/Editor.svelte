@@ -154,4 +154,12 @@
   .status--saving { color: var(--fire-soft); }
   .status--saved { color: var(--fire); }
   .status--error { color: #c96a4a; }
+
+  /* Mobile: no fixed page height to fill, so give the writing surface room. */
+  @media (max-width: 760px) {
+    .ink {
+      min-height: 48vh;
+      font-size: 1.12rem;
+    }
+  }
 </style>

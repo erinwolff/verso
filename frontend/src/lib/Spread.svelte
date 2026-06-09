@@ -85,18 +85,34 @@
     opacity: 0.7;
   }
 
-  /* Coarse single-column fallback so narrow screens aren't broken before P9
-     builds the real mobile layout. */
+  /* Mobile: single column, none of the spread machinery (§1). Editor on top,
+     small book + streak below; the dark room shows through directly. */
   @media (max-width: 760px) {
+    .spread-wrap {
+      padding: 0;
+      align-items: stretch;
+      min-height: 100dvh;
+    }
     .spread {
-      grid-template-columns: 1fr;
+      display: block;
+      width: 100%;
       aspect-ratio: auto;
-      min-height: calc(100vh - 2rem);
+      max-height: none;
+      border: none;
+      border-radius: 0;
+      background: none;
+      box-shadow: none;
     }
     .gutter,
     .spread::before { display: none; }
+    .page {
+      padding: 1.25rem 1.15rem;
+      overflow: visible;
+    }
     .page--recto {
       border-top: 1px solid var(--surface-edge);
+      margin-top: 0.25rem;
+      padding-top: 1.75rem;
     }
   }
 </style>
