@@ -4,13 +4,13 @@
   import Book from "./lib/Book.svelte";
   import Hearth from "./lib/Hearth.svelte";
   import Ember from "./lib/Ember.svelte";
+  import Nav from "./lib/Nav.svelte";
   import { stats, refreshStats, applySave } from "./lib/stats.svelte";
   import { settings, setFlicker } from "./lib/settings.svelte";
+  import { todayStr } from "./lib/dates";
 
-  // The day being written. Defaults to today (local). P8 lets this change.
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-  let activeDate = $state(todayStr);
+  // The day being written. Defaults to today (local); Nav can change it.
+  let activeDate = $state(todayStr());
 
   $effect(() => {
     refreshStats();
@@ -22,7 +22,14 @@
 <div class="room">
   <Spread>
     {#snippet verso()}
-      <Editor date={activeDate} onsaved={applySave} />
+      <div class="verso-col">
+        <Nav
+          {activeDate}
+          entries={stats.entries}
+          onnavigate={(d) => (activeDate = d)}
+        />
+        <Editor date={activeDate} onsaved={applySave} />
+      </div>
     {/snippet}
 
     {#snippet recto()}
@@ -56,6 +63,12 @@
   .room {
     position: relative;
     z-index: 1;
+  }
+  .verso-col {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
   .recto {
     margin: auto 0;

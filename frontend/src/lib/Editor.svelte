@@ -88,11 +88,6 @@
 </script>
 
 <div class="editor">
-  <header class="head">
-    <p class="wordmark">Verso</p>
-    <h1 class="date">{heading}</h1>
-  </header>
-
   <textarea
     class="ink"
     bind:value={body}
@@ -120,23 +115,6 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-  }
-  .head {
-    margin-bottom: 1.25rem;
-  }
-  .wordmark {
-    margin: 0;
-    font-family: var(--sans);
-    text-transform: uppercase;
-    letter-spacing: 0.32em;
-    font-size: 0.62rem;
-    color: var(--muted);
-  }
-  .date {
-    margin: 0.35rem 0 0;
-    font-size: clamp(1.3rem, 2.6vmin, 1.9rem);
-    font-weight: 500;
-    color: var(--ink-bright);
   }
 
   .ink {
