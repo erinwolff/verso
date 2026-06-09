@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node / Vite
+node_modules/
+frontend/dist/
+backend/static/
+*.tsbuildinfo
+
+# Data volume (never commit journal entries)
+data/
+*.local
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
