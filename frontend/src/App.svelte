@@ -1,23 +1,16 @@
 <script lang="ts">
   import Spread from "./lib/Spread.svelte";
+  import Editor from "./lib/Editor.svelte";
 
-  // The room shows today's date on the verso as part of the empty frame.
-  // The editor (P3) and book (P5) fill these pages in later phases.
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // The day being written. Defaults to today (local). P8 lets this change.
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  let activeDate = $state(todayStr);
 </script>
 
 <Spread>
   {#snippet verso()}
-    <header class="entry-head">
-      <p class="wordmark">Verso</p>
-      <h1 class="date">{today}</h1>
-    </header>
-    <p class="placeholder">The page is blank. Writing arrives in a later phase.</p>
+    <Editor date={activeDate} />
   {/snippet}
 
   {#snippet recto()}
@@ -26,27 +19,11 @@
 </Spread>
 
 <style>
-  .entry-head {
-    margin-bottom: 1.5rem;
-  }
-  .wordmark {
-    margin: 0;
-    font-family: var(--sans);
-    text-transform: uppercase;
-    letter-spacing: 0.32em;
-    font-size: 0.62rem;
-    color: var(--muted);
-  }
-  .date {
-    margin: 0.35rem 0 0;
-    font-size: clamp(1.4rem, 3vmin, 2rem);
-    font-weight: 500;
-    color: var(--ink-bright);
-  }
   .placeholder {
-    margin: auto 0;
+    margin: auto;
     color: var(--muted);
     font-style: italic;
     opacity: 0.7;
+    text-align: center;
   }
 </style>
