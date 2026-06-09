@@ -25,9 +25,18 @@ npm run dev          # http://localhost:5173, proxies /api -> :8000
 
 ## Production (single container)
 
-`npm run build` produces `frontend/dist`; the Docker image copies it to
-`backend/static`, and FastAPI serves both the SPA and `/api` from one process.
-See `verso-plan.md` §9 (Docker phase P12).
+A multi-stage image builds the SPA and serves it + `/api` from one uvicorn
+process. Everything lives in the `./data` volume — back up by copying the folder.
+
+```sh
+# edit compose.yaml first: set VERSO_PASSWORD and TZ, pick a host port
+docker compose up -d --build
+```
+
+Defaults: host port `8330` → container `8000`, `TZ=America/Los_Angeles`. Set
+`VERSO_PASSWORD` to enable the login gate, and `VERSO_COOKIE_SECURE=1` when
+served over HTTPS behind your reverse proxy. Slots in beside the other trackers
+on your Tailscale network.
 
 ## Layout
 

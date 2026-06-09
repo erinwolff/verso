@@ -1,0 +1,17 @@
+# Keep the build context small + reproducible.
+**/node_modules
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+frontend/dist
+backend/static
+backend/tests
+data
+.git
+.gitignore
+*.md
+!verso-plan.md
+.vscode
+.idea
+.DS_Store
