@@ -74,6 +74,12 @@ def list_entries() -> dict:
     return {"entries": storage.list_entries_meta()}
 
 
+@api.get("/index")
+def index() -> dict:
+    """Derived stats for the book + ember: counts, words, first/last, streak."""
+    return storage.get_index()
+
+
 app.include_router(api)
 
 
